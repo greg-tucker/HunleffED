@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import net.runelite.api.Client;
 import net.runelite.api.Prayer;

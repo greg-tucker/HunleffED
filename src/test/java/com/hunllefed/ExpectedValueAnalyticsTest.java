@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,13 +40,26 @@ public class ExpectedValueAnalyticsTest
 	}
 
 	@Test
-	public void expectedKillTimeIncludesZeroDamageAndOverkillOutcomes()
+	public void playerExpectedKillTimeClampsSuccessfulZeroDamageToOne()
 	{
 		double ticks = KillTimeCalculator.expectedKillTicks(
 			1,
-			Collections.singletonList(new AttackSample(new DamageEstimate(1.0, 2), 4)));
+			Collections.singletonList(
+				new AttackSample(new DamageEstimate(1.0, 2, true), 4)));
 
-		// Damage 0, 1 and 2 are equally likely, so the expected attack count is 1.5.
+		// Accurate rolls 0, 1 and 2 become damage 1, 1 and 2.
+		assertEquals(4.0, ticks, EPSILON);
+	}
+
+	@Test
+	public void npcExpectedKillTimeRetainsSuccessfulZeroDamage()
+	{
+		double ticks = KillTimeCalculator.expectedKillTicks(
+			1,
+			Collections.singletonList(
+				new AttackSample(new DamageEstimate(1.0, 2), 4)));
+
+		// NPC accurate rolls remain 0, 1 and 2, so E[attacks] is 1.5.
 		assertEquals(6.0, ticks, EPSILON);
 	}
 
@@ -57,17 +70,17 @@ public class ExpectedValueAnalyticsTest
 			1,
 			Arrays.asList(
 				new AttackSample(DamageEstimate.blocked(), 4),
-				new AttackSample(new DamageEstimate(1.0, 2), 5)));
+				new AttackSample(new DamageEstimate(0.5, 2, true), 5)));
 
-		// First live roll is at tick 8. Failures add a nine-tick cycle;
-		// E[time] = 8 + (1/3)/(2/3) * 9 = 12.5 ticks.
-		assertEquals(12.5, ticks, EPSILON);
+		// First live roll is at tick 8. Accuracy misses add a nine-tick cycle;
+		// E[time] = 8 + (1/2)/(1/2) * 9 = 17 ticks.
+		assertEquals(17.0, ticks, EPSILON);
 	}
 
 	@Test
 	public void performanceExpectedKillTimePreservesObservedAttackGaps()
 	{
-		DamageEstimate attack = new DamageEstimate(1.0, 1);
+		DamageEstimate attack = new DamageEstimate(0.5, 1, true);
 		double ticks = KillTimeCalculator.performanceExpectedKillTicks(
 			1,
 			Arrays.asList(
@@ -101,7 +114,7 @@ public class ExpectedValueAnalyticsTest
 		double ticks = KillTimeCalculator.expectedKillTicks(
 			1000,
 			Collections.singletonList(
-				new AttackSample(new DamageEstimate(0.72, 40), 4)));
+				new AttackSample(new DamageEstimate(0.72, 40, true), 4)));
 
 		assertTrue(Double.isFinite(ticks));
 		assertTrue(ticks > 250.0);
@@ -124,12 +137,12 @@ public class ExpectedValueAnalyticsTest
 		stats.endingHitpoints = 19;
 		stats.damageTaken = 100;
 		stats.expectedDamageTaken = 110;
-		stats.cleanMechanicsExpectedDamageTaken = 90;
+		stats.expectedDamageTakenWithoutAvoidableHits = 90;
 
 		assertEquals(1.0, stats.getActualFishEquivalent(), EPSILON);
-		assertEquals(0.5, stats.getCleanMechanicsFishEquivalent(), EPSILON);
+		assertEquals(0.5, stats.getFishEquivalentWithoutAvoidableHits(), EPSILON);
 		assertEquals(1.5, stats.getObservedMechanicsExpectedFishEquivalent(), EPSILON);
-		assertEquals(1.0, stats.getMistakeHealingFishEquivalent(), EPSILON);
+		assertEquals(1.0, stats.getAvoidableHitHealingFishEquivalent(), EPSILON);
 	}
 
 	@Test
@@ -141,10 +154,10 @@ public class ExpectedValueAnalyticsTest
 		stats.endingHitpoints = 39;
 		stats.damageTaken = 60;
 		stats.expectedDamageTaken = 40;
-		stats.cleanMechanicsExpectedDamageTaken = 40;
+		stats.expectedDamageTakenWithoutAvoidableHits = 40;
 
 		assertEquals(0.0, stats.getActualFishEquivalent(), EPSILON);
-		assertEquals(0.0, stats.getCleanMechanicsFishEquivalent(), EPSILON);
-		assertEquals(0.0, stats.getMistakeHealingFishEquivalent(), EPSILON);
+		assertEquals(0.0, stats.getFishEquivalentWithoutAvoidableHits(), EPSILON);
+		assertEquals(0.0, stats.getAvoidableHitHealingFishEquivalent(), EPSILON);
 	}
 }

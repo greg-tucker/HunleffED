@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -11,19 +11,19 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
-final class HunlleffExpectedDamageOverlay extends OverlayPanel
+final class HunllefExpectedDamageOverlay extends OverlayPanel
 {
 	private static final Color GOOD = new Color(0x66, 0xCC, 0x66);
 	private static final Color BAD = new Color(0xFF, 0x66, 0x66);
 	private static final Color NEUTRAL = Color.LIGHT_GRAY;
 
-	private final HunlleffExpectedDamagePlugin plugin;
-	private final HunlleffExpectedDamageConfig config;
+	private final HunllefExpectedDamagePlugin plugin;
+	private final HunllefExpectedDamageConfig config;
 
 	@Inject
-	private HunlleffExpectedDamageOverlay(
-		HunlleffExpectedDamagePlugin plugin,
-		HunlleffExpectedDamageConfig config)
+	private HunllefExpectedDamageOverlay(
+		HunllefExpectedDamagePlugin plugin,
+		HunllefExpectedDamageConfig config)
 	{
 		super(plugin);
 		this.plugin = plugin;
@@ -57,7 +57,7 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 
 	private void renderLive(PerformanceStatistics stats)
 	{
-		addTitle("Hunlleff analysis");
+		addTitle("Hunllef analysis");
 		addDamageLine("Damage dealt", stats.damageDealt, stats.expectedDamageDealt, true);
 		addDamageLine("Damage taken", stats.damageTaken, stats.expectedDamageTaken, false);
 		addLine("Lethal opportunities", Integer.toString(stats.lethalOpportunities), NEUTRAL);
@@ -66,7 +66,7 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 
 	private void renderResults(PerformanceStatistics stats)
 	{
-		addTitle("Hunlleff analysis");
+		addTitle("Hunllef analysis");
 		addLine("Damage: actual / expected", "", NEUTRAL);
 		addDamageLine("Damage dealt", stats.damageDealt, stats.expectedDamageDealt, true);
 		addDamageLine("Damage taken", stats.damageTaken, stats.expectedDamageTaken, false);
@@ -85,13 +85,13 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 				format(stats.getActualFishEquivalent()),
 				NEUTRAL);
 			addLine(
-				"Expected with clean play",
-				format(stats.getCleanMechanicsFishEquivalent()),
+				"Expected without avoidable hits",
+				format(stats.getFishEquivalentWithoutAvoidableHits()),
 				NEUTRAL);
 			addLine(
-				"Healing required by mistakes",
-				format(stats.getMistakeHealingFishEquivalent()),
-				mistakeHealingColor(stats.getMistakeHealingFishEquivalent()));
+				"Healing from avoidable hits",
+				format(stats.getAvoidableHitHealingFishEquivalent()),
+				avoidableHitHealingColor(stats.getAvoidableHitHealingFishEquivalent()));
 		}
 
 		addLine("Lethal opportunities", Integer.toString(stats.lethalOpportunities), NEUTRAL);
@@ -168,7 +168,7 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 		return stats.lethalOpportunities == 0 ? GOOD : Color.ORANGE;
 	}
 
-	private static Color mistakeHealingColor(double fishEquivalent)
+	private static Color avoidableHitHealingColor(double fishEquivalent)
 	{
 		return fishEquivalent < 0.05 ? GOOD : BAD;
 	}

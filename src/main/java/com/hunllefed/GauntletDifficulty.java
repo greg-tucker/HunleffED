@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 enum GauntletDifficulty
 {

@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import com.google.inject.Provides;
 import java.util.ArrayList;
@@ -38,15 +38,15 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 @PluginDescriptor(
-	name = "Hunlleff Expected Damage",
+	name = "Hunllef Expected Damage",
 	description = "Compares damage and kill time with performance and no-lost-ticks expected values"
 )
-public class HunlleffExpectedDamagePlugin extends Plugin
+public class HunllefExpectedDamagePlugin extends Plugin
 {
 	private static final int GAUNTLET_LOBBY_REGION = 12127;
 	private static final int DAMAGE_FLOOR_OBJECT = 36048;
 
-	private static final Set<Integer> HUNLLEFF_IDS = Set.of(
+	private static final Set<Integer> HUNLLEF_IDS = Set.of(
 		NpcID.CRYSTAL_HUNLLEF_MELEE,
 		NpcID.CRYSTAL_HUNLLEF_RANGED,
 		NpcID.CRYSTAL_HUNLLEF_MAGIC,
@@ -56,7 +56,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		NpcID.CRYSTAL_HUNLLEF_MAGIC_HM,
 		NpcID.CRYSTAL_HUNLLEF_DEATH_HM);
 
-	private static final Set<Integer> CORRUPTED_HUNLLEFF_IDS = Set.of(
+	private static final Set<Integer> CORRUPTED_HUNLLEF_IDS = Set.of(
 		NpcID.CRYSTAL_HUNLLEF_MELEE_HM,
 		NpcID.CRYSTAL_HUNLLEF_RANGED_HM,
 		NpcID.CRYSTAL_HUNLLEF_MAGIC_HM,
@@ -76,19 +76,19 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 	private OverlayManager overlayManager;
 
 	@Inject
-	private HunlleffExpectedDamageOverlay overlay;
+	private HunllefExpectedDamageOverlay overlay;
 
 	@Inject
-	private HunlleffExpectedDamageConfig config;
+	private HunllefExpectedDamageConfig config;
 
 	private final PerformanceStatistics statistics = new PerformanceStatistics();
 	private final List<NPC> tornadoes = new ArrayList<>();
 
-	private NPC hunlleff;
+	private NPC hunllef;
 	private boolean bossActive;
 	private boolean inLobby;
 	private boolean showResults;
-	private boolean hunlleffUsingMagic;
+	private boolean hunllefUsingMagic;
 	private GauntletDifficulty difficulty = GauntletDifficulty.CRYSTALLINE;
 	private int encounterEndTick = -1;
 
@@ -172,16 +172,16 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 			return;
 		}
 
-		if (!(actor instanceof NPC) || !isHunlleff((NPC) actor))
+		if (!(actor instanceof NPC) || !isHunllef((NPC) actor))
 		{
 			return;
 		}
 
-		hunlleff = (NPC) actor;
+		hunllef = (NPC) actor;
 		switch (animationId)
 		{
 			case AnimationID.HUNLLEF_ATTACK_RANGED:
-				recordHunlleffAttack();
+				recordHunllefAttack();
 				break;
 			case AnimationID.HUNLLEF_ATTACK_MELEE:
 				DamageEstimate stomp = CombatCalculator.stompAttack(difficulty);
@@ -189,14 +189,14 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 				recordLethalOpportunity(stomp);
 				break;
 			case AnimationID.HUNLLEF_ATTACK_TRANSITION_MAGIC:
-				hunlleffUsingMagic = true;
+				hunllefUsingMagic = true;
 				break;
 			case AnimationID.HUNLLEF_ATTACK_TRANSITION_RANGED:
-				hunlleffUsingMagic = false;
+				hunllefUsingMagic = false;
 				break;
 			case AnimationID.HUNLLEF_DEATH_PART_A:
 			case AnimationID.HUNLLEF_DEATH_PART_B:
-				statistics.hunlleffDefeated = true;
+				statistics.hunllefDefeated = true;
 				break;
 			default:
 				break;
@@ -222,7 +222,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		{
 			statistics.damageTaken += hitsplat.getAmount();
 		}
-		else if (actor instanceof NPC && isHunlleff((NPC) actor))
+		else if (actor instanceof NPC && isHunllef((NPC) actor))
 		{
 			statistics.damageDealt += hitsplat.getAmount();
 		}
@@ -236,9 +236,9 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		{
 			tornadoes.add(npc);
 		}
-		else if (HUNLLEFF_IDS.contains(npc.getId()))
+		else if (HUNLLEF_IDS.contains(npc.getId()))
 		{
-			hunlleff = npc;
+			hunllef = npc;
 			difficulty = difficultyFor(npc);
 		}
 	}
@@ -251,9 +251,9 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		{
 			tornadoes.remove(npc);
 		}
-		else if (npc == hunlleff)
+		else if (npc == hunllef)
 		{
-			hunlleff = null;
+			hunllef = null;
 		}
 	}
 
@@ -262,7 +262,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		bossActive = true;
 		showResults = false;
 		encounterEndTick = -1;
-		hunlleffUsingMagic = false;
+		hunllefUsingMagic = false;
 		tornadoes.clear();
 		statistics.reset();
 		statistics.startingHitpoints =
@@ -271,7 +271,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		difficulty = client.getVarbitValue(VarbitID.GAUNTLET_CORRUPTED) == 1
 			? GauntletDifficulty.CORRUPTED
 			: GauntletDifficulty.CRYSTALLINE;
-		findHunlleff();
+		findHunllef();
 	}
 
 	private void endEncounter()
@@ -283,7 +283,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		showResults = statistics.totalTicks > 0;
 		statistics.finish(difficulty);
 		tornadoes.clear();
-		hunlleff = null;
+		hunllef = null;
 		if (config.sendChatSummary() && showResults)
 		{
 			sendChatSummary();
@@ -296,65 +296,56 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		inLobby = false;
 		showResults = false;
 		encounterEndTick = -1;
-		hunlleffUsingMagic = false;
-		hunlleff = null;
+		hunllefUsingMagic = false;
+		hunllef = null;
 		tornadoes.clear();
 	}
 
 	private void recordPlayerAttack(int animationId)
 	{
 		CombatStyle style = combatStyleForAnimation(animationId);
-		boolean protectedByHunlleff = isProtectedByHunlleff(style);
-		boolean hasHunlleffSnapshot = hunlleff != null;
+		boolean protectedByHunllef = isProtectedByHunllef(style);
 		int elapsedTick = statistics.totalTicks;
+		EquipmentSnapshot equipment = EquipmentSnapshot.capture(client);
+		PrayerModifiers prayers = PrayerModifiers.capture(client, style);
 
-		clientThread.invokeLater(() ->
+		if (hunllef == null || !equipment.supports(style))
 		{
-			if (!bossActive)
-			{
-				return;
-			}
+			statistics.unmodelledPlayerAttacks++;
+			return;
+		}
 
-			EquipmentSnapshot equipment = EquipmentSnapshot.capture(client);
-			PrayerModifiers prayers = PrayerModifiers.capture(client, style);
-			if (!hasHunlleffSnapshot || !equipment.supports(style))
-			{
-				statistics.unmodelledPlayerAttacks++;
-				return;
-			}
+		int stance = client.getVarpValue(VarPlayerID.COM_MODE);
+		int attackSpeed = equipment.getAttackSpeed(stance);
+		MeleeType meleeType = meleeType(animationId, equipment, stance);
+		int[] stanceBonuses = offensiveStanceBonuses(style, animationId, equipment, stance);
+		int accuracyLevel = style == CombatStyle.MELEE
+			? client.getBoostedSkillLevel(Skill.ATTACK)
+			: client.getBoostedSkillLevel(style == CombatStyle.RANGED ? Skill.RANGED : Skill.MAGIC);
+		int damageLevel = style == CombatStyle.MELEE
+			? client.getBoostedSkillLevel(Skill.STRENGTH)
+			: accuracyLevel;
 
-			int stance = client.getVarpValue(VarPlayerID.COM_MODE);
-			int attackSpeed = equipment.getAttackSpeed(stance);
-			MeleeType meleeType = meleeType(animationId, equipment, stance);
-			int[] stanceBonuses = offensiveStanceBonuses(style, animationId, equipment, stance);
-			int accuracyLevel = style == CombatStyle.MELEE
-				? client.getBoostedSkillLevel(Skill.ATTACK)
-				: client.getBoostedSkillLevel(style == CombatStyle.RANGED ? Skill.RANGED : Skill.MAGIC);
-			int damageLevel = style == CombatStyle.MELEE
-				? client.getBoostedSkillLevel(Skill.STRENGTH)
-				: accuracyLevel;
+		DamageEstimate estimate = CombatCalculator.playerAttack(
+			style,
+			accuracyLevel,
+			damageLevel,
+			equipment.getAttackBonus(style, meleeType),
+			equipment.getStrengthBonus(style),
+			stanceBonuses[0],
+			stanceBonuses[1],
+			prayers.getAccuracy(),
+			prayers.getStrength(),
+			equipment.getMagicMaxHit(),
+			prayers.getMagicDamagePermille(),
+			protectedByHunllef);
 
-			DamageEstimate estimate = CombatCalculator.playerAttack(
-				style,
-				accuracyLevel,
-				damageLevel,
-				equipment.getAttackBonus(style, meleeType),
-				equipment.getStrengthBonus(style),
-				stanceBonuses[0],
-				stanceBonuses[1],
-				prayers.getAccuracy(),
-				prayers.getStrength(),
-				equipment.getMagicMaxHit(),
-				prayers.getMagicDamagePermille(),
-				protectedByHunlleff);
-
-			statistics.addPlayerAttack(estimate, attackSpeed, elapsedTick);
-		});
+		statistics.addPlayerAttack(estimate, attackSpeed, elapsedTick);
 	}
 
-	private void recordHunlleffAttack()
+	private void recordHunllefAttack()
 	{
-		CombatStyle style = hunlleffUsingMagic ? CombatStyle.MAGIC : CombatStyle.RANGED;
+		CombatStyle style = hunllefUsingMagic ? CombatStyle.MAGIC : CombatStyle.RANGED;
 		boolean correctPrayer = hasCorrectProtectionPrayer(style);
 
 		EquipmentSnapshot equipment = EquipmentSnapshot.capture(client);
@@ -364,7 +355,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 			combatStyleForWeapon(equipment.getWeaponId()),
 			stance);
 
-		DamageEstimate estimate = CombatCalculator.hunlleffAttack(
+		DamageEstimate estimate = CombatCalculator.hunllefAttack(
 			difficulty,
 			style,
 			client.getBoostedSkillLevel(Skill.DEFENCE),
@@ -376,7 +367,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 			correctPrayer,
 			equipment.getArmourTierSum());
 
-		DamageEstimate cleanMechanicsEstimate = CombatCalculator.hunlleffAttack(
+		DamageEstimate estimateWithoutAvoidableHits = CombatCalculator.hunllefAttack(
 			difficulty,
 			style,
 			client.getBoostedSkillLevel(Skill.DEFENCE),
@@ -389,8 +380,8 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 			equipment.getArmourTierSum());
 
 		statistics.expectedDamageTaken += estimate.getExpectedDamage();
-		statistics.cleanMechanicsExpectedDamageTaken +=
-			cleanMechanicsEstimate.getExpectedDamage();
+		statistics.expectedDamageTakenWithoutAvoidableHits +=
+			estimateWithoutAvoidableHits.getExpectedDamage();
 		recordLethalOpportunity(estimate);
 	}
 
@@ -461,14 +452,14 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		return groundObject != null && groundObject.getId() == DAMAGE_FLOOR_OBJECT;
 	}
 
-	private boolean isProtectedByHunlleff(CombatStyle style)
+	private boolean isProtectedByHunllef(CombatStyle style)
 	{
-		if (hunlleff == null)
+		if (hunllef == null)
 		{
 			return false;
 		}
 
-		switch (hunlleff.getId())
+		switch (hunllef.getId())
 		{
 			case NpcID.CRYSTAL_HUNLLEF_MELEE:
 			case NpcID.CRYSTAL_HUNLLEF_MELEE_HM:
@@ -496,7 +487,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		return client.getVarbitValue(prayer.getVarbit()) == 1;
 	}
 
-	private void findHunlleff()
+	private void findHunllef()
 	{
 		Player player = client.getLocalPlayer();
 		if (player == null || player.getWorldView() == null)
@@ -506,9 +497,9 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 
 		for (NPC npc : player.getWorldView().npcs())
 		{
-			if (isHunlleff(npc))
+			if (isHunllef(npc))
 			{
-				hunlleff = npc;
+				hunllef = npc;
 				difficulty = difficultyFor(npc);
 				return;
 			}
@@ -537,14 +528,14 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 	{
 		String message = String.format(
 			Locale.ROOT,
-			"Hunlleff analysis - dealt %d / %.1f expected; taken %d / %.1f expected; "
+			"Hunllef analysis - dealt %d / %.1f expected; taken %d / %.1f expected; "
 				+ "kill %s actual / %s performance EV / %s no-loss EV; "
 				+ "lethal opportunities %d (%.1f%% death chance).",
 			statistics.damageDealt,
 			statistics.expectedDamageDealt,
 			statistics.damageTaken,
 			statistics.expectedDamageTaken,
-			statistics.hunlleffDefeated
+			statistics.hunllefDefeated
 				? formatTime(statistics.getActualKillTicks())
 				: "DNF",
 			Double.isFinite(statistics.performanceExpectedKillTicks)
@@ -561,13 +552,13 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 			message += String.format(
 				Locale.ROOT,
 				" Food check (20 HP each, HP %d to %d): %.1f needed this fight / "
-					+ "%.1f expected with clean play / %.1f healing required by "
-					+ "mistakes (EV).",
+					+ "%.1f expected without avoidable hits / %.1f healing from "
+					+ "avoidable hits (EV).",
 				statistics.startingHitpoints,
 				statistics.endingHitpoints,
 				statistics.getActualFishEquivalent(),
-				statistics.getCleanMechanicsFishEquivalent(),
-				statistics.getMistakeHealingFishEquivalent());
+				statistics.getFishEquivalentWithoutAvoidableHits(),
+				statistics.getAvoidableHitHealingFishEquivalent());
 		}
 
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
@@ -686,14 +677,14 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		return stance == 1 || stance == 3 ? 3 : 0;
 	}
 
-	private static boolean isHunlleff(NPC npc)
+	private static boolean isHunllef(NPC npc)
 	{
-		return HUNLLEFF_IDS.contains(npc.getId());
+		return HUNLLEF_IDS.contains(npc.getId());
 	}
 
 	private static GauntletDifficulty difficultyFor(NPC npc)
 	{
-		return CORRUPTED_HUNLLEFF_IDS.contains(npc.getId())
+		return CORRUPTED_HUNLLEF_IDS.contains(npc.getId())
 			? GauntletDifficulty.CORRUPTED
 			: GauntletDifficulty.CRYSTALLINE;
 	}
@@ -714,9 +705,9 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 	}
 
 	@Provides
-	HunlleffExpectedDamageConfig provideConfig(ConfigManager configManager)
+	HunllefExpectedDamageConfig provideConfig(ConfigManager configManager)
 	{
-		return configManager.getConfig(HunlleffExpectedDamageConfig.class);
+		return configManager.getConfig(HunllefExpectedDamageConfig.class);
 	}
 
 }

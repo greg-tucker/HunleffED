@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import java.util.List;
 import java.util.function.IntToDoubleFunction;
@@ -16,7 +16,7 @@ final class KillTimeCalculator
 	/**
 	 * Calculates the exact expected time for the observed attack sequence,
 	 * repeated as a cycle with every attack made as soon as its weapon permits.
-	 * Each accurate hit is uniformly distributed over the integers 0..max hit.
+	 * Each attack uses the damage distribution captured in its estimate.
 	 */
 	static double expectedKillTicks(int hitpoints, List<AttackSample> attacks)
 	{
@@ -140,7 +140,11 @@ final class KillTimeCalculator
 		}
 
 		double probabilityPerAccurateRoll = hitChance / (maxHit + 1);
-		double zeroDamageProbability = 1.0 - hitChance + probabilityPerAccurateRoll;
+		double zeroDamageProbability = 1.0 - hitChance;
+		if (!estimate.clampsSuccessfulZero())
+		{
+			zeroDamageProbability += probabilityPerAccurateRoll;
+		}
 		for (int hp = 1; hp < remainingHp.length; hp++)
 		{
 			double stateProbability = remainingHp[hp];
@@ -152,8 +156,13 @@ final class KillTimeCalculator
 			next[hp] += stateProbability * zeroDamageProbability;
 			for (int damage = 1; damage <= maxHit; damage++)
 			{
+				double damageProbability = probabilityPerAccurateRoll;
+				if (estimate.clampsSuccessfulZero() && damage == 1)
+				{
+					damageProbability += probabilityPerAccurateRoll;
+				}
 				next[Math.max(0, hp - damage)] +=
-					stateProbability * probabilityPerAccurateRoll;
+					stateProbability * damageProbability;
 			}
 		}
 		return next;

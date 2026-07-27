@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 enum CombatStyle
 {
@@ -6,4 +6,3 @@ enum CombatStyle
 	RANGED,
 	MAGIC
 }
-

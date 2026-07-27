@@ -14,7 +14,7 @@ repositories {
 }
 
 def runeLiteVersion = 'latest.release'
-def pluginMainClass = 'com.hunlleffed.HunlleffExpectedDamagePluginTest'
+def pluginMainClass = 'com.hunllefed.HunllefExpectedDamagePluginTest'
 
 dependencies {
 	compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
@@ -24,7 +24,7 @@ dependencies {
 	testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
 }
 
-group = 'com.hunlleffed'
+group = 'com.hunllefed'
 version = '1.1.0'
 
 tasks.withType(JavaCompile).configureEach {

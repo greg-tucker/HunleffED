@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 enum MeleeType
 {
@@ -6,4 +6,3 @@ enum MeleeType
 	SLASH,
 	CRUSH
 }
-

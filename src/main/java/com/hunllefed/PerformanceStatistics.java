@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,11 +19,11 @@ final class PerformanceStatistics
 	int lethalOpportunities;
 	double expectedDamageDealt;
 	double expectedDamageTaken;
-	double cleanMechanicsExpectedDamageTaken;
+	double expectedDamageTakenWithoutAvoidableHits;
 	double lethalSurvivalProbability;
 	double performanceExpectedKillTicks;
 	double noLossExpectedKillTicks;
-	boolean hunlleffDefeated;
+	boolean hunllefDefeated;
 
 	void reset()
 	{
@@ -38,11 +38,11 @@ final class PerformanceStatistics
 		lethalOpportunities = 0;
 		expectedDamageDealt = 0;
 		expectedDamageTaken = 0;
-		cleanMechanicsExpectedDamageTaken = 0;
+		expectedDamageTakenWithoutAvoidableHits = 0;
 		lethalSurvivalProbability = 1.0;
 		performanceExpectedKillTicks = Double.NaN;
 		noLossExpectedKillTicks = Double.NaN;
-		hunlleffDefeated = false;
+		hunllefDefeated = false;
 	}
 
 	void addPlayerAttack(DamageEstimate estimate, int attackSpeed, int elapsedTick)
@@ -81,7 +81,7 @@ final class PerformanceStatistics
 
 	double getActualKillTicks()
 	{
-		return hunlleffDefeated ? totalTicks : Double.NaN;
+		return hunllefDefeated ? totalTicks : Double.NaN;
 	}
 
 	double getDamageDealtDifference()
@@ -99,10 +99,10 @@ final class PerformanceStatistics
 		return fishEquivalent(damageTaken, startingHitpoints, endingHitpoints);
 	}
 
-	double getCleanMechanicsFishEquivalent()
+	double getFishEquivalentWithoutAvoidableHits()
 	{
 		return fishEquivalent(
-			cleanMechanicsExpectedDamageTaken,
+			expectedDamageTakenWithoutAvoidableHits,
 			startingHitpoints,
 			endingHitpoints);
 	}
@@ -115,12 +115,12 @@ final class PerformanceStatistics
 			endingHitpoints);
 	}
 
-	double getMistakeHealingFishEquivalent()
+	double getAvoidableHitHealingFishEquivalent()
 	{
 		return Math.max(
 			0.0,
 			getObservedMechanicsExpectedFishEquivalent()
-				- getCleanMechanicsFishEquivalent());
+				- getFishEquivalentWithoutAvoidableHits());
 	}
 
 	private static double fishEquivalent(

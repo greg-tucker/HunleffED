@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import net.runelite.api.gameval.ItemID;
 import org.junit.Test;
@@ -45,7 +45,10 @@ public class CombatCalculatorTest
 		assertEquals(40, estimate.getMaxHit());
 		assertEquals(CombatCalculator.hitChance(attackRoll, defenceRoll),
 			estimate.getHitChance(), EPSILON);
-		assertEquals(estimate.getHitChance() * 20.0, estimate.getExpectedDamage(), EPSILON);
+		assertEquals(
+			estimate.getHitChance() * (20.0 + 1.0 / 41.0),
+			estimate.getExpectedDamage(),
+			EPSILON);
 	}
 
 	@Test
@@ -80,7 +83,7 @@ public class CombatCalculatorTest
 	}
 
 	@Test
-	public void hunlleffMagicAttackUsesPlayerMagicAndDefenceRoll()
+	public void hunllefMagicAttackUsesPlayerMagicAndDefenceRoll()
 	{
 		EquipmentSnapshot equipment = EquipmentSnapshot.fromItemIds(
 			ItemID.GAUNTLET_MAGIC_T3_HM,
@@ -89,7 +92,7 @@ public class CombatCalculatorTest
 			ItemID.GAUNTLET_CHESTPLATE_T2_HM,
 			ItemID.GAUNTLET_PLATELEGS_T2_HM);
 
-		DamageEstimate protectedEstimate = CombatCalculator.hunlleffAttack(
+		DamageEstimate protectedEstimate = CombatCalculator.hunllefAttack(
 			GauntletDifficulty.CORRUPTED,
 			CombatStyle.MAGIC,
 			99,
@@ -109,7 +112,7 @@ public class CombatCalculatorTest
 			protectedEstimate.getHitChance(),
 			EPSILON);
 
-		DamageEstimate unprotectedEstimate = CombatCalculator.hunlleffAttack(
+		DamageEstimate unprotectedEstimate = CombatCalculator.hunllefAttack(
 			GauntletDifficulty.CORRUPTED,
 			CombatStyle.MAGIC,
 			99,
@@ -124,7 +127,7 @@ public class CombatCalculatorTest
 	}
 
 	@Test
-	public void hunlleffProtectionAndTornadoCapsUseArmourTierSum()
+	public void hunllefProtectionAndTornadoCapsUseArmourTierSum()
 	{
 		assertEquals(16, GauntletDifficulty.CORRUPTED.getProtectedMaxHit(0));
 		assertEquals(13, GauntletDifficulty.CORRUPTED.getProtectedMaxHit(3));

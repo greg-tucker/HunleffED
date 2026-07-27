@@ -1,18 +1,18 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup(HunlleffExpectedDamageConfig.GROUP)
-public interface HunlleffExpectedDamageConfig extends Config
+@ConfigGroup(HunllefExpectedDamageConfig.GROUP)
+public interface HunllefExpectedDamageConfig extends Config
 {
-	String GROUP = "hunlleffExpectedDamage";
+	String GROUP = "hunllefExpectedDamage";
 
 	@ConfigItem(
 		keyName = "hideOverlayDuringFight",
 		name = "Hide during fight",
-		description = "Hide the live overlay while fighting Hunlleff",
+		description = "Hide the live overlay while fighting Hunllef",
 		position = 0
 	)
 	default boolean hideOverlayDuringFight()
@@ -23,7 +23,7 @@ public interface HunlleffExpectedDamageConfig extends Config
 	@ConfigItem(
 		keyName = "showFishAnalysis",
 		name = "Show fish analysis",
-		description = "Show health-adjusted food needs and expected healing caused by mistakes in 20-HP paddlefish equivalents",
+		description = "Show health-adjusted food needs and expected healing from avoidable hits in 20-HP paddlefish equivalents",
 		position = 1
 	)
 	default boolean showFishAnalysis()
