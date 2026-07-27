@@ -1,9 +1,9 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 final class CombatCalculator
 {
-	static final int HUNLLEFF_DEFENCE_LEVEL = 240;
-	static final int HUNLLEFF_DEFENCE_BONUS = 20;
+	static final int HUNLLEF_DEFENCE_LEVEL = 240;
+	static final int HUNLLEF_DEFENCE_BONUS = 20;
 	static final int FLOOR_MIN_HIT = 10;
 	static final int FLOOR_MAX_HIT = 20;
 
@@ -23,9 +23,9 @@ final class CombatCalculator
 		double strengthPrayer,
 		int fixedMagicMaxHit,
 		int magicDamagePermille,
-		boolean protectedByHunlleff)
+		boolean protectedByHunllef)
 	{
-		if (protectedByHunlleff)
+		if (protectedByHunllef)
 		{
 			return DamageEstimate.blocked();
 		}
@@ -64,11 +64,14 @@ final class CombatCalculator
 		}
 
 		int attackRoll = effectiveAccuracy * (attackBonus + 64);
-		int defenceRoll = (HUNLLEFF_DEFENCE_LEVEL + 9) * (HUNLLEFF_DEFENCE_BONUS + 64);
-		return new DamageEstimate(hitChance(attackRoll, defenceRoll), maxHit);
+		int defenceRoll = (HUNLLEF_DEFENCE_LEVEL + 9) * (HUNLLEF_DEFENCE_BONUS + 64);
+		return new DamageEstimate(
+			hitChance(attackRoll, defenceRoll),
+			maxHit,
+			true);
 	}
 
-	static DamageEstimate hunlleffAttack(
+	static DamageEstimate hunllefAttack(
 		GauntletDifficulty difficulty,
 		CombatStyle style,
 		int defenceLevel,
@@ -89,7 +92,7 @@ final class CombatCalculator
 
 		effectiveDefence += defensiveStanceBonus;
 		int defenceRoll = (effectiveDefence + 8) * (defenceBonus + 64);
-		int attackRoll = (HUNLLEFF_DEFENCE_LEVEL + 9) * (difficulty.getAttackBonus() + 64);
+		int attackRoll = (HUNLLEF_DEFENCE_LEVEL + 9) * (difficulty.getAttackBonus() + 64);
 		int maxHit = correctProtectionPrayer
 			? difficulty.getProtectedMaxHit(armourTierSum)
 			: difficulty.getUnprotectedMaxHit();
@@ -99,7 +102,12 @@ final class CombatCalculator
 
 	static double stompExpectedDamage(GauntletDifficulty difficulty)
 	{
-		return difficulty.getUnprotectedMaxHit() / 2.0;
+		return stompAttack(difficulty).getExpectedDamage();
+	}
+
+	static DamageEstimate stompAttack(GauntletDifficulty difficulty)
+	{
+		return new DamageEstimate(1.0, difficulty.getUnprotectedMaxHit());
 	}
 
 	static double floorExpectedDamage()

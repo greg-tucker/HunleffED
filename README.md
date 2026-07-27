@@ -1,180 +1,149 @@
-# Hunlleff Expected Damage
+# Hunllef Expected Damage
 
-A RuneLite Plugin Hub-style plugin for the Crystalline and Corrupted
-Hunlleff. It keeps the useful fight review from Gauntlet Performance Tracker
-and adds live and post-fight **actual versus expected damage** in both
-directions.
+A RuneLite plugin for reviewing damage RNG and execution during the Crystalline
+and Corrupted Hunllef fights.
 
-The overlay answers two different questions:
-
-- **To Hunlleff:** did your weapon attacks deal more or less damage than their
-  mathematical expectation?
-- **To you:** did you take more or less damage than the mathematical
-  expectation of Hunlleff's attacks and the hazards you touched?
-
-A positive difference is good on the `To Hunlleff` line. A negative difference
-is good on the `To you` line. The colors follow that convention.
+It complements Gauntlet Performance Tracker by focusing on expected-value
+statistics instead of repeating its tick-loss, wrong-prayer, wrong-style and
+hazard-count report.
 
 ## Features
 
-- Live actual / expected / difference totals during the fight.
-- Post-fight results in the Gauntlet lobby.
-- Separate expected-damage models for normal and Corrupted Gauntlet.
-- Per-attack snapshots of boosted levels, equipment, attack style and prayers.
-- All basic, attuned and perfected bows, staves and halberds, plus the sceptre
-  and unarmed 5:1 attacks.
-- Hunlleff Ranged and Magic accuracy against the player's current armour,
-  Defence, Magic, defensive stance and prayers.
-- Correct-prayer damage caps from the combined armour tier.
-- Expected damage for stomp, tornado and damaging-floor contact.
-- Tick use, lost ticks, wrong styles, wrong prayers and avoidable-hit counts.
-- Optional local chat summary. The plugin sends no data over the network and
-  does not write fight history to disk.
+- Actual versus expected damage dealt and taken.
+- Live fight totals and a post-fight lobby summary.
+- Separate calculations for the normal and Corrupted Gauntlet.
+- Per-attack snapshots of equipment, boosted levels, prayers and combat stance.
+- Support for every Gauntlet weapon tier, the sceptre and unarmed 5:1 attacks.
+- Actual, Performance EV and No-loss EV kill times.
+- Lethal opportunities and death chance.
+- Optional paddlefish-equivalent healing analysis.
+- Optional local chat summary.
 
-## What “expected” means
+No fight data is uploaded or written to history files.
 
-For a standard attack:
+## Metrics
+
+### Damage
+
+Expected damage uses the standard OSRS accuracy formula and the player's state
+when each attack starts. Player successful hits use the current minimum-damage
+rule, where a successful zero roll is raised to one. Hunllef attacks retain the
+NPC damage range from zero through maximum hit.
+
+Outgoing calculations include the equipped weapon, boosted combat levels,
+stance and offensive prayers. Incoming calculations include the player's
+Defence and Magic levels, armour bonuses, defensive stance, prayers and the
+combined tier of the equipped Gauntlet armour.
+
+Correct protection prayers and armour reduce Hunllef's maximum hit. Armour also
+reduces the expected damage from tornadoes. Stomps and damaging floor tiles use
+their unmitigated damage ranges.
+
+### Kill time
+
+- `Actual` is the recorded duration of a successful fight.
+- `Performance EV` applies average hit RNG to the attacks and delays observed
+  during that fight.
+- `No-loss EV` uses the same attack setup and weapon mix but removes gaps
+  between attacks.
+
+The expected values repeat the observed attack sequence if more attacks are
+needed to cover 600 or 1,000 HP. They account for misses, blocked attacks,
+minimum player damage, overkill and weapon speed. Neither expected value is an
+optimal-gear or perfect-strategy benchmark.
+
+### Lethal opportunities
+
+A lethal opportunity is a Hunllef attack or stomp whose maximum hit could kill
+the player at their recorded HP when the attack started. Death chance combines
+the lethal-roll probability of those opportunities:
 
 ```text
-expected damage = chance to hit × average successful hit
-                = chance to hit × (maximum hit / 2)
+death chance = 1 - product(1 - lethal chance of each opportunity)
 ```
 
-The normal OSRS accuracy roll is then used:
+Tornadoes and floor damage are excluded from this metric.
+
+### Fish analysis
+
+Enable `Show fish analysis` to display:
+
+- `Needed this fight`: actual healing used, adjusted for starting and ending HP.
+- `Expected without avoidable hits`: expected healing with correct protection
+  prayers and no stomp, tornado or floor damage.
+- `Healing from avoidable hits`: the expected difference between the observed
+  mechanics and the result without avoidable hits.
+
+Values are expressed in standard 20-HP paddlefish equivalents:
 
 ```text
-if attack roll > defence roll:
-    P(hit) = 1 - (defence roll + 2) / (2 × (attack roll + 1))
-otherwise:
-    P(hit) = attack roll / (2 × (defence roll + 1))
+fish equivalent = max(0, damage + ending HP - starting HP) / 20
 ```
 
-Player attack rolls use the boosted combat level, current offensive prayer,
-stance and the exact offensive bonuses of the equipped Gauntlet gear.
-Hunlleff's defence is level 240 with +20 defence bonuses. Powered staves use
-their fixed 23 / 31 / 39 base maximum hits and current Magic-prayer damage
-bonuses.
-
-Incoming rolls use the Hunlleff's style and difficulty-specific attack bonus,
-then roll against the player's current Ranged or Magic defence. The Magic
-defence level is the standard 70% Magic / 30% Defence combination. Correct
-protection prayer and the armour tier sum select the relevant Hunlleff damage
-cap.
-
-Stomps use half of the difficulty's unprotected maximum hit. Tornado and floor
-expectations use the midpoint of their documented inclusive damage ranges.
-This makes the `To you` comparison like-for-like: actual damage includes those
-hazards, so expected damage does too.
-
-Expected damage is an average over many attacks, not a prediction for the next
-hit. A short fight can legitimately finish well above or below expectation.
-
-### Scope and edge cases
-
-- Reflected or otherwise non-weapon damage, such as Vengeance, is included in
-  actual damage dealt because it produces a real hitsplat. It is not assigned
-  an attack-roll expectation, so it will increase the displayed difference.
-- If RuneLite observes an unsupported player attack, the detailed result shows
-  `Damage model coverage` instead of silently inventing an expectation.
-- The calculation constants are intentionally self-contained and covered by
-  unit tests. They should be reviewed when Jagex changes Gauntlet equipment,
-  prayers or Hunlleff mechanics.
-
-The armour caps and hazard ranges are documented on the
-[OSRS Wiki Gauntlet page](https://oldschool.runescape.wiki/w/The_Gauntlet).
-The combat formula implementation follows the open-source
-[OSRS Wiki DPS Calculator](https://github.com/weirdgloop/osrs-dps-calc).
+The calculation ignores overhealing and passive regeneration. It retains the
+number of standard Hunllef attacks observed in the real fight, so “without
+avoidable hits” is not a no-tick-loss incoming-damage simulation.
 
 ## Run locally
 
 ### Requirements
 
-- A 64-bit JDK. Java 11 is the Plugin Hub target and is the safest choice.
-- Git, if cloning rather than downloading the source archive.
+- Java 11
+- Git, if cloning the repository
 
-The Gradle wrapper is included, so a separate Gradle installation is not
-needed.
+The Gradle wrapper is included.
 
-### Windows
-
-Open PowerShell in the repository root:
+On Windows:
 
 ```powershell
+cd C:\path\to\hunllef-expected-damage
 .\gradlew.bat test
 .\gradlew.bat run
 ```
 
-### macOS or Linux
-
-Open a terminal in the repository root:
+On macOS or Linux:
 
 ```bash
 ./gradlew test
 ./gradlew run
 ```
 
-The second command launches a RuneLite developer client and sideloads
-`Hunlleff Expected Damage`. Log in, open RuneLite's plugin configuration,
-search for that name, and make sure it is enabled. Enter either Gauntlet and
-the overlay will appear when the Hunlleff encounter begins.
+The `run` task opens a RuneLite developer client with the plugin sideloaded.
+Enable `Hunllef Expected Damage` in the plugin configuration.
 
-To test the key paths:
+### Jagex Accounts
 
-1. Do one normal and one Corrupted Gauntlet.
-2. Use at least two weapon styles and switch prayers normally.
-3. Deliberately take one floor or tornado hit so its expected value is included.
-4. After the encounter, check that the result remains visible in the lobby.
-5. Enable `Chat summary` and verify that the message is local game chat only.
+To use the developer client with a Jagex Account:
 
-For a Jagex Account, first follow RuneLite's
-[development login guide](https://github.com/runelite/wiki/blob/master/Using-Jagex-Accounts.md).
-Treat the generated `credentials.properties` as a secret and never commit or
-share it.
+1. Open `RuneLite (configure)` from the Windows Start menu.
+2. Add `--insecure-write-credentials` to `Client arguments`.
+3. Launch RuneLite once through the Jagex Launcher, then close it.
+4. Run `.\gradlew.bat run`.
+5. After testing, remove the argument and delete
+   `.runelite/credentials.properties`.
 
-## Build and verify
+The credentials file is a secret and must not be shared or committed. More
+detail is available in RuneLite's
+[Jagex Account development guide](https://github.com/runelite/wiki/blob/master/Using-Jagex-Accounts.md).
+
+## Build
 
 ```powershell
-.\gradlew.bat clean test
-.\gradlew.bat build
+.\gradlew.bat clean test build
 ```
 
-The first command runs the deterministic combat-math tests. The second also
-creates the normal plugin JAR under `build/libs`. Local testing should use the
-`run` task rather than copying that JAR into an installed RuneLite client.
+The plugin JAR is created in `build/libs`.
 
-## Plugin Hub submission
+## References
 
-This repository already follows the current standard Plugin Hub layout:
+Armour caps and hazard ranges come from the
+[OSRS Wiki Gauntlet page](https://oldschool.runescape.wiki/w/The_Gauntlet).
+Combat formulas follow the open-source
+[OSRS Wiki DPS Calculator](https://github.com/weirdgloop/osrs-dps-calc).
 
-- Java 11 bytecode
-- `runelite-plugin.properties` with `build=standard`
-- one public `Plugin` entry point
-- Gradle wrapper and a developer-client `run` task
-- no reflection, subprocesses, runtime downloads or external services
-- BSD 2-Clause licensing
-
-The normal submission process is:
-
-1. Publish this repository publicly and push a tested commit.
-2. Fork `runelite/plugin-hub`.
-3. Add a manifest file under `plugins/` containing the repository URL and
-   tested commit hash.
-4. Run the Plugin Hub verification task described in its README.
-5. Open a pull request.
-
-See the current
-[RuneLite Plugin Hub submission guide](https://github.com/runelite/plugin-hub/blob/master/README.md)
-before submitting. RuneLite currently lists new high-end PvM boss plugins
-among features that may be rejected, so contributing the expected-damage
-feature to the already-listed Gauntlet Performance Tracker may be the easier
-review route. This standalone project remains suitable for local testing and
-for proposing that integration.
-
-## Acknowledgements
-
-Fight lifecycle, tick-use and review concepts are based on
+Encounter lifecycle concepts are based on
 [Gauntlet Performance Tracker](https://github.com/powerus117/RLCGPerformanceTracker).
-The actual-versus-expected presentation was inspired by
+The expected-value presentation was inspired by
 [PvP Performance Tracker](https://github.com/Matsyir/pvp-performance-tracker).
 
 Licensed under the [BSD 2-Clause License](LICENSE).

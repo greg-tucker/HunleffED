@@ -1,4 +1,4 @@
-package com.hunlleffed;
+package com.hunllefed;
 
 import net.runelite.api.Client;
 import net.runelite.api.Prayer;
@@ -138,11 +138,6 @@ final class PrayerModifiers
 	double getMagicDefence()
 	{
 		return magicDefence;
-	}
-
-	boolean hasOffensivePrayer()
-	{
-		return accuracy > 1.0 || strength > 1.0 || magicDamagePermille > 0;
 	}
 
 	private static double meleeAccuracy(Client client)
