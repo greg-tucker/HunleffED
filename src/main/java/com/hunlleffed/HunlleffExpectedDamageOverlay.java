@@ -30,7 +30,7 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 		this.config = config;
 		setPosition(OverlayPosition.TOP_LEFT);
 		setLayer(OverlayLayer.ABOVE_WIDGETS);
-		panelComponent.setPreferredSize(new Dimension(260, 0));
+		panelComponent.setPreferredSize(new Dimension(270, 0));
 	}
 
 	@Override
@@ -57,67 +57,73 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 
 	private void renderLive(PerformanceStatistics stats)
 	{
-		TickLossState tickState = plugin.getTickLossState();
-		String tickText = tickState == TickLossState.NONE ? "No tick loss" : "Losing ticks";
-		Color tickColor = tickState == TickLossState.NONE
-			? GOOD
-			: (tickState == TickLossState.POTENTIAL ? Color.ORANGE : BAD);
-
-		panelComponent.getChildren().add(TitleComponent.builder()
-			.text(tickText)
-			.color(tickColor)
-			.build());
-		addDamageLine("To Hunlleff", stats.damageDealt, stats.expectedDamageDealt, true);
-		addDamageLine("To you", stats.damageTaken, stats.expectedDamageTaken, false);
-		addLine("Tick use", format(stats.getTickUsePercent()) + "%", NEUTRAL);
+		addTitle("Hunlleff analysis");
+		addDamageLine("Damage dealt", stats.damageDealt, stats.expectedDamageDealt, true);
+		addDamageLine("Damage taken", stats.damageTaken, stats.expectedDamageTaken, false);
+		addLine("Lethal opportunities", Integer.toString(stats.lethalOpportunities), NEUTRAL);
+		addLine("Death chance", percent(stats.getLethalChance()), riskColor(stats));
 	}
 
 	private void renderResults(PerformanceStatistics stats)
 	{
-		panelComponent.getChildren().add(TitleComponent.builder()
-			.text("Hunlleff performance")
-			.color(Color.WHITE)
-			.build());
+		addTitle("Hunlleff analysis");
+		addLine("Damage: actual / expected", "", NEUTRAL);
+		addDamageLine("Damage dealt", stats.damageDealt, stats.expectedDamageDealt, true);
+		addDamageLine("Damage taken", stats.damageTaken, stats.expectedDamageTaken, false);
+		addLine("Kill time", "", NEUTRAL);
+		addKillTimeLines(stats);
 
-		addLine("Actual / expected (difference)", "", NEUTRAL);
-		addDamageLine("To Hunlleff", stats.damageDealt, stats.expectedDamageDealt, true);
-		addDamageLine("To you", stats.damageTaken, stats.expectedDamageTaken, false);
-		addLine(
-			"Damage DPS",
-			format(stats.getDps(stats.damageDealt)) + " dealt / "
-				+ format(stats.getDps(stats.damageTaken)) + " taken",
-			NEUTRAL);
-
-		if (!config.showDetailedResults())
+		if (config.showFishAnalysis())
 		{
-			return;
+			addLine("Food check (20 HP each)", "", NEUTRAL);
+			addLine(
+				"HP: start / end",
+				stats.startingHitpoints + " / " + stats.endingHitpoints,
+				NEUTRAL);
+			addLine(
+				"Needed this fight",
+				format(stats.getActualFishEquivalent()),
+				NEUTRAL);
+			addLine(
+				"Expected with clean play",
+				format(stats.getCleanMechanicsFishEquivalent()),
+				NEUTRAL);
+			addLine(
+				"Healing required by mistakes",
+				format(stats.getMistakeHealingFishEquivalent()),
+				mistakeHealingColor(stats.getMistakeHealingFishEquivalent()));
 		}
 
-		addLine("Total ticks", Integer.toString(stats.totalTicks), NEUTRAL);
-		addLine("Lost ticks", Integer.toString(stats.missedTicks), stats.missedTicks == 0 ? GOOD : BAD);
-		addLine("Tick use", format(stats.getTickUsePercent()) + "%", NEUTRAL);
-		addLine("Player attacks", Integer.toString(stats.playerAttacks), NEUTRAL);
-		addLine("Wrong attack style", Integer.toString(stats.wrongAttackStyle),
-			countColor(stats.wrongAttackStyle));
-		addLine("Wrong offensive prayer", Integer.toString(stats.wrongOffensivePrayer),
-			countColor(stats.wrongOffensivePrayer));
-		addLine("Hunlleff attacks", Integer.toString(stats.hunlleffAttacks), NEUTRAL);
-		addLine("Wrong defensive prayer", Integer.toString(stats.wrongDefensivePrayer),
-			countColor(stats.wrongDefensivePrayer));
-		addLine("Hunlleff stomps", Integer.toString(stats.hunlleffStomps),
-			countColor(stats.hunlleffStomps));
-		addLine("Tornado hits", Integer.toString(stats.tornadoHits),
-			countColor(stats.tornadoHits));
-		addLine("Floor hits", Integer.toString(stats.floorHits),
-			countColor(stats.floorHits));
+		addLine("Lethal opportunities", Integer.toString(stats.lethalOpportunities), NEUTRAL);
+		addLine("Death chance", percent(stats.getLethalChance()), riskColor(stats));
 
 		if (stats.unmodelledPlayerAttacks > 0)
 		{
+			int observedAttacks = stats.modelledPlayerAttacks + stats.unmodelledPlayerAttacks;
 			addLine(
 				"Damage model coverage",
-				stats.modelledPlayerAttacks + " / " + stats.playerAttacks + " attacks",
+				stats.modelledPlayerAttacks + " / " + observedAttacks + " attacks",
 				Color.ORANGE);
 		}
+	}
+
+	private void addKillTimeLines(PerformanceStatistics stats)
+	{
+		double actualTicks = stats.getActualKillTicks();
+		addLine(
+			"Actual",
+			Double.isFinite(actualTicks) ? formatTime(actualTicks) : "DNF",
+			Double.isFinite(actualTicks) ? NEUTRAL : BAD);
+		addExpectedTimeLine("Performance EV", stats.performanceExpectedKillTicks);
+		addExpectedTimeLine("No-loss EV", stats.noLossExpectedKillTicks);
+	}
+
+	private void addExpectedTimeLine(String label, double ticks)
+	{
+		addLine(
+			label,
+			Double.isFinite(ticks) ? formatTime(ticks) : "n/a",
+			Double.isFinite(ticks) ? NEUTRAL : Color.ORANGE);
 	}
 
 	private void addDamageLine(String label, int actual, double expected, boolean higherIsBetter)
@@ -140,6 +146,14 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 			color);
 	}
 
+	private void addTitle(String title)
+	{
+		panelComponent.getChildren().add(TitleComponent.builder()
+			.text(title)
+			.color(Color.WHITE)
+			.build());
+	}
+
 	private void addLine(String left, String right, Color rightColor)
 	{
 		panelComponent.getChildren().add(LineComponent.builder()
@@ -149,9 +163,27 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 			.build());
 	}
 
-	private static Color countColor(int value)
+	private static Color riskColor(PerformanceStatistics stats)
 	{
-		return value == 0 ? GOOD : BAD;
+		return stats.lethalOpportunities == 0 ? GOOD : Color.ORANGE;
+	}
+
+	private static Color mistakeHealingColor(double fishEquivalent)
+	{
+		return fishEquivalent < 0.05 ? GOOD : BAD;
+	}
+
+	private static String formatTime(double ticks)
+	{
+		double totalSeconds = ticks * 0.6;
+		int minutes = (int) (totalSeconds / 60.0);
+		double seconds = totalSeconds - minutes * 60.0;
+		return String.format(Locale.ROOT, "%d:%04.1f", minutes, seconds);
+	}
+
+	private static String percent(double probability)
+	{
+		return format(probability * 100.0) + "%";
 	}
 
 	private static String format(double value)
@@ -164,4 +196,3 @@ final class HunlleffExpectedDamageOverlay extends OverlayPanel
 		return String.format(Locale.ROOT, "%+.1f", value);
 	}
 }
-

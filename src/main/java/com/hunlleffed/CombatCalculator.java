@@ -99,7 +99,12 @@ final class CombatCalculator
 
 	static double stompExpectedDamage(GauntletDifficulty difficulty)
 	{
-		return difficulty.getUnprotectedMaxHit() / 2.0;
+		return stompAttack(difficulty).getExpectedDamage();
+	}
+
+	static DamageEstimate stompAttack(GauntletDifficulty difficulty)
+	{
+		return new DamageEstimate(1.0, difficulty.getUnprotectedMaxHit());
 	}
 
 	static double floorExpectedDamage()

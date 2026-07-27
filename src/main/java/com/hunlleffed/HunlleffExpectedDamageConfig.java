@@ -21,23 +21,12 @@ public interface HunlleffExpectedDamageConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showDetailedResults",
-		name = "Detailed results",
-		description = "Show tick, prayer, attack-style, and hazard details after the fight",
+		keyName = "showFishAnalysis",
+		name = "Show fish analysis",
+		description = "Show health-adjusted food needs and expected healing caused by mistakes in 20-HP paddlefish equivalents",
 		position = 1
 	)
-	default boolean showDetailedResults()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "countUnarmedOffPrayer",
-		name = "Count unarmed off-prayer",
-		description = "Count punches, kicks, and sceptre attacks as an offensive-prayer mistake when no melee prayer is active",
-		position = 2
-	)
-	default boolean countUnarmedOffPrayer()
+	default boolean showFishAnalysis()
 	{
 		return false;
 	}
@@ -45,12 +34,11 @@ public interface HunlleffExpectedDamageConfig extends Config
 	@ConfigItem(
 		keyName = "sendChatSummary",
 		name = "Chat summary",
-		description = "Post the actual-versus-expected damage result to your local game chat when the fight ends",
-		position = 3
+		description = "Post the enabled result statistics to local game chat",
+		position = 2
 	)
 	default boolean sendChatSummary()
 	{
 		return false;
 	}
 }
-

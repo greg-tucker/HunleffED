@@ -2,11 +2,8 @@ package com.hunlleffed;
 
 import com.google.inject.Provides;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
@@ -14,8 +11,6 @@ import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GroundObject;
 import net.runelite.api.Hitsplat;
-import net.runelite.api.Item;
-import net.runelite.api.ItemContainer;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
 import net.runelite.api.Scene;
@@ -27,13 +22,10 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.AnimationChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.HitsplatApplied;
-import net.runelite.api.events.ItemContainerChanged;
-import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.NpcSpawned;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.AnimationID;
-import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.ItemID;
 import net.runelite.api.gameval.NpcID;
 import net.runelite.api.gameval.VarPlayerID;
@@ -44,19 +36,15 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
-import net.runelite.client.util.Text;
 
 @PluginDescriptor(
 	name = "Hunlleff Expected Damage",
-	description = "Tracks Gauntlet performance and actual versus expected damage"
+	description = "Compares damage and kill time with performance and no-lost-ticks expected values"
 )
 public class HunlleffExpectedDamagePlugin extends Plugin
 {
 	private static final int GAUNTLET_LOBBY_REGION = 12127;
 	private static final int DAMAGE_FLOOR_OBJECT = 36048;
-	private static final int STANDARD_WEAPON_SPEED = 4;
-	private static final int FOOD_DELAY = 3;
-	private static final int COMBO_FOOD_DELAY = 2;
 
 	private static final Set<Integer> HUNLLEFF_IDS = Set.of(
 		NpcID.CRYSTAL_HUNLLEF_MELEE,
@@ -95,18 +83,13 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 
 	private final PerformanceStatistics statistics = new PerformanceStatistics();
 	private final List<NPC> tornadoes = new ArrayList<>();
-	private final Map<Integer, PendingEat> pendingEats = new HashMap<>();
 
 	private NPC hunlleff;
 	private boolean bossActive;
-	private boolean inGauntlet;
 	private boolean inLobby;
 	private boolean showResults;
 	private boolean hunlleffUsingMagic;
 	private GauntletDifficulty difficulty = GauntletDifficulty.CRYSTALLINE;
-	private TickLossState tickLossState = TickLossState.NONE;
-	private int previousAttackTick;
-	private int previousWeaponSpeed = STANDARD_WEAPON_SPEED;
 	private int encounterEndTick = -1;
 
 	@Override
@@ -116,7 +99,6 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		overlayManager.add(overlay);
 		clientThread.invokeLater(() ->
 		{
-			inGauntlet = client.getVarbitValue(VarbitID.PLAYER_IN_GAUNTLET) == 1;
 			if (client.getVarbitValue(VarbitID.GAUNTLET_BOSS_STARTED) == 1)
 			{
 				startEncounter();
@@ -137,8 +119,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 	{
 		if (event.getVarbitId() == VarbitID.PLAYER_IN_GAUNTLET)
 		{
-			inGauntlet = event.getValue() == 1;
-			if (inGauntlet)
+			if (event.getValue() == 1)
 			{
 				showResults = false;
 			}
@@ -171,10 +152,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		}
 
 		statistics.totalTicks++;
-		updateTickLossState();
 		updateHazardTracking();
-		pendingEats.entrySet().removeIf(entry ->
-			client.getTickCount() - entry.getValue().tick > 3);
 	}
 
 	@Subscribe
@@ -206,14 +184,19 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 				recordHunlleffAttack();
 				break;
 			case AnimationID.HUNLLEF_ATTACK_MELEE:
-				statistics.hunlleffStomps++;
-				statistics.expectedDamageTaken += CombatCalculator.stompExpectedDamage(difficulty);
+				DamageEstimate stomp = CombatCalculator.stompAttack(difficulty);
+				statistics.expectedDamageTaken += stomp.getExpectedDamage();
+				recordLethalOpportunity(stomp);
 				break;
 			case AnimationID.HUNLLEF_ATTACK_TRANSITION_MAGIC:
 				hunlleffUsingMagic = true;
 				break;
 			case AnimationID.HUNLLEF_ATTACK_TRANSITION_RANGED:
 				hunlleffUsingMagic = false;
+				break;
+			case AnimationID.HUNLLEF_DEATH_PART_A:
+			case AnimationID.HUNLLEF_DEATH_PART_B:
+				statistics.hunlleffDefeated = true;
 				break;
 			default:
 				break;
@@ -274,64 +257,16 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		}
 	}
 
-	@Subscribe
-	public void onMenuOptionClicked(MenuOptionClicked event)
-	{
-		if (!bossActive)
-		{
-			return;
-		}
-
-		String option = Text.removeTags(event.getMenuOption()).toLowerCase(Locale.ROOT);
-		if (!option.startsWith("eat"))
-		{
-			return;
-		}
-
-		int itemId = event.getItemId();
-		if (!isTrackedFood(itemId))
-		{
-			return;
-		}
-
-		int slot = event.getMenuEntry().getParam0();
-		pendingEats.put(slot, new PendingEat(itemId, client.getTickCount()));
-	}
-
-	@Subscribe
-	public void onItemContainerChanged(ItemContainerChanged event)
-	{
-		if (!bossActive || event.getItemContainer().getId() != InventoryID.INV)
-		{
-			return;
-		}
-
-		Item[] items = event.getItemContainer().getItems();
-		Set<Integer> completedSlots = new HashSet<>();
-		pendingEats.forEach((slot, pending) ->
-		{
-			if (slot < 0 || slot >= items.length || items[slot].getId() != pending.itemId)
-			{
-				previousAttackTick += foodDelay(pending.itemId);
-				completedSlots.add(slot);
-			}
-		});
-		completedSlots.forEach(pendingEats::remove);
-	}
-
 	private void startEncounter()
 	{
 		bossActive = true;
-		inGauntlet = true;
 		showResults = false;
 		encounterEndTick = -1;
 		hunlleffUsingMagic = false;
 		tornadoes.clear();
-		pendingEats.clear();
 		statistics.reset();
-		previousAttackTick = client.getTickCount();
-		previousWeaponSpeed = STANDARD_WEAPON_SPEED;
-		tickLossState = TickLossState.NONE;
+		statistics.startingHitpoints =
+			client.getBoostedSkillLevel(Skill.HITPOINTS);
 
 		difficulty = client.getVarbitValue(VarbitID.GAUNTLET_CORRUPTED) == 1
 			? GauntletDifficulty.CORRUPTED
@@ -343,10 +278,11 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 	{
 		bossActive = false;
 		encounterEndTick = client.getTickCount();
-		inGauntlet = false;
+		statistics.endingHitpoints =
+			client.getBoostedSkillLevel(Skill.HITPOINTS);
 		showResults = statistics.totalTicks > 0;
+		statistics.finish(difficulty);
 		tornadoes.clear();
-		pendingEats.clear();
 		hunlleff = null;
 		if (config.sendChatSummary() && showResults)
 		{
@@ -357,14 +293,12 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 	private void resetRuntimeState()
 	{
 		bossActive = false;
-		inGauntlet = false;
 		inLobby = false;
 		showResults = false;
 		encounterEndTick = -1;
 		hunlleffUsingMagic = false;
 		hunlleff = null;
 		tornadoes.clear();
-		pendingEats.clear();
 	}
 
 	private void recordPlayerAttack(int animationId)
@@ -372,7 +306,7 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		CombatStyle style = combatStyleForAnimation(animationId);
 		boolean protectedByHunlleff = isProtectedByHunlleff(style);
 		boolean hasHunlleffSnapshot = hunlleff != null;
-		int attackTick = client.getTickCount();
+		int elapsedTick = statistics.totalTicks;
 
 		clientThread.invokeLater(() ->
 		{
@@ -381,34 +315,16 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 				return;
 			}
 
-			statistics.playerAttacks++;
-			if (protectedByHunlleff)
-			{
-				statistics.wrongAttackStyle++;
-			}
-
 			EquipmentSnapshot equipment = EquipmentSnapshot.capture(client);
 			PrayerModifiers prayers = PrayerModifiers.capture(client, style);
-			boolean unarmedLike = isUnarmedAnimation(animationId) || equipment.isSceptre();
-			if (!prayers.hasOffensivePrayer()
-				&& (config.countUnarmedOffPrayer() || !unarmedLike))
-			{
-				statistics.wrongOffensivePrayer++;
-			}
-
-			int ticksBetweenAttacks = attackTick - previousAttackTick;
-			statistics.missedTicks += Math.max(0, ticksBetweenAttacks - previousWeaponSpeed);
-			previousAttackTick = attackTick;
 			if (!hasHunlleffSnapshot || !equipment.supports(style))
 			{
-				previousWeaponSpeed = equipment.getAttackSpeed(
-					client.getVarpValue(VarPlayerID.COM_MODE));
 				statistics.unmodelledPlayerAttacks++;
 				return;
 			}
 
 			int stance = client.getVarpValue(VarPlayerID.COM_MODE);
-			previousWeaponSpeed = equipment.getAttackSpeed(stance);
+			int attackSpeed = equipment.getAttackSpeed(stance);
 			MeleeType meleeType = meleeType(animationId, equipment, stance);
 			int[] stanceBonuses = offensiveStanceBonuses(style, animationId, equipment, stance);
 			int accuracyLevel = style == CombatStyle.MELEE
@@ -432,20 +348,14 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 				prayers.getMagicDamagePermille(),
 				protectedByHunlleff);
 
-			statistics.expectedDamageDealt += estimate.getExpectedDamage();
-			statistics.modelledPlayerAttacks++;
+			statistics.addPlayerAttack(estimate, attackSpeed, elapsedTick);
 		});
 	}
 
 	private void recordHunlleffAttack()
 	{
-		statistics.hunlleffAttacks++;
 		CombatStyle style = hunlleffUsingMagic ? CombatStyle.MAGIC : CombatStyle.RANGED;
 		boolean correctPrayer = hasCorrectProtectionPrayer(style);
-		if (!correctPrayer)
-		{
-			statistics.wrongDefensivePrayer++;
-		}
 
 		EquipmentSnapshot equipment = EquipmentSnapshot.capture(client);
 		PrayerModifiers prayers = PrayerModifiers.capture(client, style);
@@ -466,24 +376,32 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 			correctPrayer,
 			equipment.getArmourTierSum());
 
+		DamageEstimate cleanMechanicsEstimate = CombatCalculator.hunlleffAttack(
+			difficulty,
+			style,
+			client.getBoostedSkillLevel(Skill.DEFENCE),
+			client.getBoostedSkillLevel(Skill.MAGIC),
+			equipment.getDefenceBonus(style),
+			defensiveStanceBonus,
+			prayers.getDefence(),
+			prayers.getMagicDefence(),
+			true,
+			equipment.getArmourTierSum());
+
 		statistics.expectedDamageTaken += estimate.getExpectedDamage();
-		statistics.modelledHunlleffAttacks++;
+		statistics.cleanMechanicsExpectedDamageTaken +=
+			cleanMechanicsEstimate.getExpectedDamage();
+		recordLethalOpportunity(estimate);
 	}
 
-	private void updateTickLossState()
+	private void recordLethalOpportunity(DamageEstimate estimate)
 	{
-		int ticksSinceAttack = client.getTickCount() - previousAttackTick;
-		if (ticksSinceAttack >= previousWeaponSpeed + FOOD_DELAY)
+		Player player = client.getLocalPlayer();
+		if (player != null)
 		{
-			tickLossState = TickLossState.LOSING;
-		}
-		else if (ticksSinceAttack >= previousWeaponSpeed)
-		{
-			tickLossState = TickLossState.POTENTIAL;
-		}
-		else
-		{
-			tickLossState = TickLossState.NONE;
+			statistics.addLethalOpportunity(
+				estimate,
+				client.getBoostedSkillLevel(Skill.HITPOINTS));
 		}
 	}
 
@@ -501,7 +419,6 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		{
 			if (playerLocation.equals(tornado.getWorldLocation()))
 			{
-				statistics.tornadoHits++;
 				statistics.expectedDamageTaken +=
 					difficulty.getTornadoExpectedDamage(equipment.getArmourTierSum());
 			}
@@ -509,7 +426,6 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 
 		if (isStandingOnDamageFloor(player))
 		{
-			statistics.floorHits++;
 			statistics.expectedDamageTaken += CombatCalculator.floorExpectedDamage();
 		}
 	}
@@ -621,14 +537,48 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 	{
 		String message = String.format(
 			Locale.ROOT,
-			"Hunlleff damage - dealt: %d / %.1f expected (%+.1f); taken: %d / %.1f expected (%+.1f).",
+			"Hunlleff analysis - dealt %d / %.1f expected; taken %d / %.1f expected; "
+				+ "kill %s actual / %s performance EV / %s no-loss EV; "
+				+ "lethal opportunities %d (%.1f%% death chance).",
 			statistics.damageDealt,
 			statistics.expectedDamageDealt,
-			statistics.getDamageDealtDifference(),
 			statistics.damageTaken,
 			statistics.expectedDamageTaken,
-			statistics.getDamageTakenDifference());
+			statistics.hunlleffDefeated
+				? formatTime(statistics.getActualKillTicks())
+				: "DNF",
+			Double.isFinite(statistics.performanceExpectedKillTicks)
+				? formatTime(statistics.performanceExpectedKillTicks)
+				: "n/a",
+			Double.isFinite(statistics.noLossExpectedKillTicks)
+				? formatTime(statistics.noLossExpectedKillTicks)
+				: "n/a",
+			statistics.lethalOpportunities,
+			statistics.getLethalChance() * 100.0);
+
+		if (config.showFishAnalysis())
+		{
+			message += String.format(
+				Locale.ROOT,
+				" Food check (20 HP each, HP %d to %d): %.1f needed this fight / "
+					+ "%.1f expected with clean play / %.1f healing required by "
+					+ "mistakes (EV).",
+				statistics.startingHitpoints,
+				statistics.endingHitpoints,
+				statistics.getActualFishEquivalent(),
+				statistics.getCleanMechanicsFishEquivalent(),
+				statistics.getMistakeHealingFishEquivalent());
+		}
+
 		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
+	}
+
+	private static String formatTime(double ticks)
+	{
+		double totalSeconds = ticks * 0.6;
+		int minutes = (int) (totalSeconds / 60.0);
+		double seconds = totalSeconds - minutes * 60.0;
+		return String.format(Locale.ROOT, "%d:%04.1f", minutes, seconds);
 	}
 
 	private static boolean isPlayerAttackAnimation(int animationId)
@@ -736,18 +686,6 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		return stance == 1 || stance == 3 ? 3 : 0;
 	}
 
-	private static boolean isTrackedFood(int itemId)
-	{
-		return itemId == ItemID.GAUNTLET_FOOD
-			|| itemId == ItemID.GAUNTLET_COMBO_FOOD
-			|| itemId == ItemID.GAUNTLET_COMBO_FOOD_HM;
-	}
-
-	private static int foodDelay(int itemId)
-	{
-		return itemId == ItemID.GAUNTLET_FOOD ? FOOD_DELAY : COMBO_FOOD_DELAY;
-	}
-
 	private static boolean isHunlleff(NPC npc)
 	{
 		return HUNLLEFF_IDS.contains(npc.getId());
@@ -775,26 +713,10 @@ public class HunlleffExpectedDamagePlugin extends Plugin
 		return showResults && inLobby;
 	}
 
-	TickLossState getTickLossState()
-	{
-		return tickLossState;
-	}
-
 	@Provides
 	HunlleffExpectedDamageConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(HunlleffExpectedDamageConfig.class);
 	}
 
-	private static final class PendingEat
-	{
-		private final int itemId;
-		private final int tick;
-
-		private PendingEat(int itemId, int tick)
-		{
-			this.itemId = itemId;
-			this.tick = tick;
-		}
-	}
 }

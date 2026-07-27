@@ -140,11 +140,6 @@ final class PrayerModifiers
 		return magicDefence;
 	}
 
-	boolean hasOffensivePrayer()
-	{
-		return accuracy > 1.0 || strength > 1.0 || magicDamagePermille > 0;
-	}
-
 	private static double meleeAccuracy(Client client)
 	{
 		if (active(client, Prayer.INCREDIBLE_REFLEXES))

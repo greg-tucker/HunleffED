@@ -1,62 +1,87 @@
 package com.hunlleffed;
 
+import java.util.ArrayList;
+import java.util.List;
+
 final class PerformanceStatistics
 {
+	private static final int PADDLEFISH_HEAL = 20;
+
+	private final List<AttackSample> playerAttackCycle = new ArrayList<>();
+
 	int totalTicks;
-	int missedTicks;
-	int playerAttacks;
 	int modelledPlayerAttacks;
 	int unmodelledPlayerAttacks;
-	int wrongAttackStyle;
-	int wrongOffensivePrayer;
-	int wrongDefensivePrayer;
-	int hunlleffAttacks;
-	int modelledHunlleffAttacks;
-	int hunlleffStomps;
-	int tornadoHits;
-	int floorHits;
 	int damageDealt;
 	int damageTaken;
+	int startingHitpoints;
+	int endingHitpoints;
+	int lethalOpportunities;
 	double expectedDamageDealt;
 	double expectedDamageTaken;
+	double cleanMechanicsExpectedDamageTaken;
+	double lethalSurvivalProbability;
+	double performanceExpectedKillTicks;
+	double noLossExpectedKillTicks;
+	boolean hunlleffDefeated;
 
 	void reset()
 	{
+		playerAttackCycle.clear();
 		totalTicks = 0;
-		missedTicks = 0;
-		playerAttacks = 0;
 		modelledPlayerAttacks = 0;
 		unmodelledPlayerAttacks = 0;
-		wrongAttackStyle = 0;
-		wrongOffensivePrayer = 0;
-		wrongDefensivePrayer = 0;
-		hunlleffAttacks = 0;
-		modelledHunlleffAttacks = 0;
-		hunlleffStomps = 0;
-		tornadoHits = 0;
-		floorHits = 0;
 		damageDealt = 0;
 		damageTaken = 0;
+		startingHitpoints = 0;
+		endingHitpoints = 0;
+		lethalOpportunities = 0;
 		expectedDamageDealt = 0;
 		expectedDamageTaken = 0;
+		cleanMechanicsExpectedDamageTaken = 0;
+		lethalSurvivalProbability = 1.0;
+		performanceExpectedKillTicks = Double.NaN;
+		noLossExpectedKillTicks = Double.NaN;
+		hunlleffDefeated = false;
 	}
 
-	double getTickUsePercent()
+	void addPlayerAttack(DamageEstimate estimate, int attackSpeed, int elapsedTick)
 	{
-		if (totalTicks <= 0)
-		{
-			return 0.0;
-		}
-		return Math.max(0.0, (1.0 - (double) missedTicks / totalTicks) * 100.0);
+		playerAttackCycle.add(new AttackSample(estimate, attackSpeed, elapsedTick));
+		expectedDamageDealt += estimate.getExpectedDamage();
+		modelledPlayerAttacks++;
 	}
 
-	double getDps(int damage)
+	void addLethalOpportunity(DamageEstimate estimate, int hitpoints)
 	{
-		if (totalTicks <= 0)
+		double probability = LethalChanceCalculator.singleAttackChance(estimate, hitpoints);
+		if (probability <= 0.0)
 		{
-			return 0.0;
+			return;
 		}
-		return damage / (totalTicks * 0.6);
+
+		lethalOpportunities++;
+		lethalSurvivalProbability *= 1.0 - probability;
+	}
+
+	void finish(GauntletDifficulty difficulty)
+	{
+		performanceExpectedKillTicks = KillTimeCalculator.performanceExpectedKillTicks(
+			difficulty.getHitpoints(),
+			playerAttackCycle);
+		noLossExpectedKillTicks = KillTimeCalculator.expectedKillTicks(
+			difficulty.getHitpoints(),
+			playerAttackCycle);
+	}
+
+	double getLethalChance()
+	{
+		return 1.0 - lethalSurvivalProbability;
+	}
+
+	double getActualKillTicks()
+	{
+		return hunlleffDefeated ? totalTicks : Double.NaN;
 	}
 
 	double getDamageDealtDifference()
@@ -68,5 +93,42 @@ final class PerformanceStatistics
 	{
 		return damageTaken - expectedDamageTaken;
 	}
-}
 
+	double getActualFishEquivalent()
+	{
+		return fishEquivalent(damageTaken, startingHitpoints, endingHitpoints);
+	}
+
+	double getCleanMechanicsFishEquivalent()
+	{
+		return fishEquivalent(
+			cleanMechanicsExpectedDamageTaken,
+			startingHitpoints,
+			endingHitpoints);
+	}
+
+	double getObservedMechanicsExpectedFishEquivalent()
+	{
+		return fishEquivalent(
+			expectedDamageTaken,
+			startingHitpoints,
+			endingHitpoints);
+	}
+
+	double getMistakeHealingFishEquivalent()
+	{
+		return Math.max(
+			0.0,
+			getObservedMechanicsExpectedFishEquivalent()
+				- getCleanMechanicsFishEquivalent());
+	}
+
+	private static double fishEquivalent(
+		double damage,
+		int startingHitpoints,
+		int endingHitpoints)
+	{
+		double healingRequired = damage + endingHitpoints - startingHitpoints;
+		return Math.max(0.0, healingRequired) / PADDLEFISH_HEAL;
+	}
+}
